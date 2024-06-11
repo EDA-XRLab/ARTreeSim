@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request,WebSocket
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
 import uvicorn
 import os
@@ -15,7 +16,7 @@ from itertools import cycle
 import time
 import redis
 import argparse
-
+from shapely import wkt
 class TreeProperties(BaseModel):
     x: float
     y: float
@@ -41,10 +42,18 @@ TreeResponseCollection = FeatureCollection[TreeResponse]
 
 
 class DataHandler:
-    def __init__(self,img_dir,rgb_pos_catalog,raw_tree_gjson) -> None:
-        self.img_dir = Path(img_dir)
-        self.rb_pos_catalog = gpd.read_csv(rgb_pos_catalog)
-        self.raw_tree_df = gpd.read_file(raw_tree_gjson)
+    def __init__(self,data_dir:str) -> None:
+
+        data_dir = Path(data_dir)
+        self.img_dir = data_dir/'images'
+        rgb_pos_catalog_path = data_dir/'pos_rgb_catalog.csv'
+        raw_tree_gjson_path = data_dir/'raw_trees.geojson'
+
+        rgb_pos_catalog = pd.read_csv(rgb_pos_catalog_path)
+        rgb_pos_catalog['geometry'] = rgb_pos_catalog['geometry'].apply(wkt.loads)
+        rgb_pos_catalog['time'] = pd.to_datetime(rgb_pos_catalog['time'],format='mixed')
+        self.rb_pos_catalog = gpd.GeoDataFrame(rgb_pos_catalog,geometry="geometry")
+        self.raw_tree_df = gpd.read_file(raw_tree_gjson_path)
 
         # get time deltas between each entry in the catalog
         time_diff = self.rb_pos_catalog['time'].diff().dt.total_seconds()
@@ -59,9 +68,9 @@ class DataHandler:
         self.pos_sub.subscribe('position')
 
     def iter(self,time:datetime):
-        current_iter = self.rb_pos_catalog[self.rb_pos_catalog['time']==time][0]
+        current_iter = self.rb_pos_catalog[self.rb_pos_catalog['time']==time].loc[0]
         raw_tree_set = self.raw_tree_df[self.raw_tree_df['time']==time].__geo_interface__
-        current_rgb = str(current_iter['rgb_path'].value())
+        current_rgb = str(current_iter['rgb_path'])
         rgb_path = self.img_dir/current_rgb
 
         self.current_rgb_path = rgb_path
@@ -91,14 +100,14 @@ ar_sim = FastAPI()
 
 @ar_sim.on_event("startup")
 async def startup_event():
-    global datahandler
-    ar_sim.datahandler = datahandler 
+    
+    ar_sim.datahandler = DataHandler("/home/dunbar/Desktop/Recordings/2024_5_10/ar_sim_test/")
     ar_sim.datahandler.run()
 
 
 @ar_sim.get("/video")
 async def video_feed():
-    return StreamingResponse(datahandler.get_img(),media_type='multipart/x-mixed-replace; boundary=frame')
+    return StreamingResponse(ar_sim.datahandler.get_img(),media_type='multipart/x-mixed-replace; boundary=frame')
 
 @ar_sim.websocket("/tree",)
 async def tree_ws(websocket: WebSocket) -> TreeResponseCollection:
@@ -121,15 +130,9 @@ async def pos_ws(websocket: WebSocket) -> PositionResponse:
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--data_dir',type=str,required=True)
 
-    args = parser.parse_args()
-    data_dir = Path(args.data_dir)
-    img_dir = data_dir/'images'
-    rgb_pos_catalog = data_dir/'pos_rgb_catalog.csv'
-    raw_tree_gjson = data_dir/'raw_trees.geojson'
-    datahandler = DataHandler(img_dir,rgb_pos_catalog,raw_tree_gjson)
-    uvicorn.run("ar_sim:ar_sim",host="0.0.0.0", port=8800,log_level="info",reload=True)
+  
+
+    uvicorn.run("ar_sim:ar_sim",host="0.0.0.0", port=8800,log_level="info",reload=False)
 
             
