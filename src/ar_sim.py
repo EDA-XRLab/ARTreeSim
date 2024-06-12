@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request,WebSocket
+from fastapi import FastAPI, Request,WebSocket,BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
 import uvicorn
@@ -17,6 +17,9 @@ import time
 import redis
 import argparse
 from shapely import wkt
+
+from threading import Thread
+
 class TreeProperties(BaseModel):
     x: float
     y: float
@@ -44,20 +47,25 @@ TreeResponseCollection = FeatureCollection[TreeResponse]
 class DataHandler:
     def __init__(self,data_dir:str) -> None:
 
-        data_dir = Path(data_dir)
-        self.img_dir = data_dir/'images'
-        rgb_pos_catalog_path = data_dir/'pos_rgb_catalog.csv'
-        raw_tree_gjson_path = data_dir/'raw_trees.geojson'
+        self.data_dir = Path(data_dir)
+        self.img_dir = self.data_dir / "images/"
+        rgb_pos_catalog_path = self.data_dir/'pos_rgb_catalog.csv'
+        raw_tree_gjson_path = self.data_dir/'raw_trees.json'
 
         rgb_pos_catalog = pd.read_csv(rgb_pos_catalog_path)
         rgb_pos_catalog['geometry'] = rgb_pos_catalog['geometry'].apply(wkt.loads)
         rgb_pos_catalog['time'] = pd.to_datetime(rgb_pos_catalog['time'],format='mixed')
         self.rb_pos_catalog = gpd.GeoDataFrame(rgb_pos_catalog,geometry="geometry")
-        self.raw_tree_df = gpd.read_file(raw_tree_gjson_path)
+        with open(raw_tree_gjson_path,'r') as f:
+            self.raw_tree_gjson = json.load(f)
 
+
+        self.raw_tree_df = gpd.GeoDataFrame.from_features(self.raw_tree_gjson['features'])
+        self.raw_tree_df['time'] = pd.to_datetime(self.raw_tree_df['time'],format='mixed')
         # get time deltas between each entry in the catalog
-        time_diff = self.rb_pos_catalog['time'].diff().dt.total_seconds()
-        self.time_delta = cycle(time_diff.to_list())
+        time_diff = self.rb_pos_catalog['time'].diff().dt.total_seconds().to_list()
+        time_diff[0] = 0
+        self.time_delta = cycle(time_diff)
 
         self.time_cycle = cycle(self.rb_pos_catalog['time'].to_list())
 
@@ -68,20 +76,27 @@ class DataHandler:
         self.pos_sub.subscribe('position')
 
     def iter(self,time:datetime):
-        current_iter = self.rb_pos_catalog[self.rb_pos_catalog['time']==time].loc[0]
-        raw_tree_set = self.raw_tree_df[self.raw_tree_df['time']==time].__geo_interface__
-        current_rgb = str(current_iter['rgb_path'])
-        rgb_path = self.img_dir/current_rgb
+        current_iter = self.rb_pos_catalog[self.rb_pos_catalog['time']==time].__geo_interface__["features"][0] 
+        
+        tolerance = pd.Timedelta(seconds=.5)
+        tree_mask = (self.raw_tree_df['time'] >= time - tolerance) & (self.raw_tree_df['time'] <= time + tolerance)
+        raw_tree_set = self.raw_tree_df.loc[tree_mask].__geo_interface__
+        current_rgb = Path(current_iter["properties"]['rgb_path'])
+        rgb_path = self.img_dir/current_rgb.name
 
         self.current_rgb_path = rgb_path
-        self.current_tree_set = TreeResponseCollection(raw_tree_set.to_dict())
-        self.current_iter = PositionResponse(current_iter.drop('rgb_path',axis=1).to_dict())
         
-        self.redis_server.publish('tree',json.dumps(self.current_tree_set))
-        self.redis_server.publish('position',json.dumps(self.current_iter))
-    
+        self.current_iter = PositionResponse(**current_iter)
+        
+   
+        self.redis_server.publish('position',self.current_iter.model_dump_json())
+
+        if raw_tree_set:
+            self.current_tree_set = TreeResponseCollection(**raw_tree_set)
+            self.redis_server.publish('tree',self.current_tree_set.model_dump_json())
+
     def get_img(self):
-        img = cv2.imread(self.current_rgb_path)
+        img = cv2.imread(str(self.current_rgb_path))
         ret,buffer = cv2.imencode('.jpg',img)
         frame = buffer.tobytes()
         if ret:
@@ -91,10 +106,10 @@ class DataHandler:
 
     def run(self):
         # Iterate over the time entries in self.rb_pos_catalog, when done restart the loop
-
-        for delta,time in zip(self.time_delta,self.time_cycle):
-            self.iter(time)
-            time.sleep(delta)
+        while True:
+            for delta,time_stamp in zip(self.time_delta,self.time_cycle):
+                self.iter(time_stamp)
+                time.sleep(delta)
 
 ar_sim = FastAPI()
 
@@ -102,21 +117,27 @@ ar_sim = FastAPI()
 async def startup_event():
     
     ar_sim.datahandler = DataHandler("/home/dunbar/Desktop/Recordings/2024_5_10/ar_sim_test/")
-    ar_sim.datahandler.run()
+    main_thread = Thread(target=ar_sim.datahandler.run)
+    main_thread.start()
 
+   
 
 @ar_sim.get("/video")
 async def video_feed():
-    return StreamingResponse(ar_sim.datahandler.get_img(),media_type='multipart/x-mixed-replace; boundary=frame')
+    def stream():
+        while True:
+            for image in ar_sim.datahandler.get_img():
+                yield image
+    return StreamingResponse(stream(),media_type='multipart/x-mixed-replace; boundary=frame')
 
-@ar_sim.websocket("/tree",)
-async def tree_ws(websocket: WebSocket) -> TreeResponseCollection:
-    await websocket.accept()
+@ar_sim.get("/tree",)
+async def tree_ws(request:Request) -> TreeResponseCollection:
+ 
     while True:
         for message in ar_sim.datahandler.tree_sub.listen():
             if message['type'] == 'message':
-                response = TreeResponseCollection.parse_raw(message['data'])
-                await websocket.send_text(response)
+                response = TreeResponseCollection.model_validate_json(message['data'])
+                return response
             
 @ar_sim.websocket("/position")
 async def pos_ws(websocket: WebSocket) -> PositionResponse:
@@ -133,6 +154,6 @@ if __name__ == '__main__':
 
   
 
-    uvicorn.run("ar_sim:ar_sim",host="0.0.0.0", port=8800,log_level="info",reload=False)
+    uvicorn.run("ar_sim:ar_sim",host="0.0.0.0", port=8800,log_level="info",reload=True)
 
             
