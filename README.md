@@ -45,21 +45,9 @@ This endpoint sends realtime tree detections as a geojson 'FeatureCollection'. A
 
 ```json
 {
-    "bbox": [
-        -114.04663625949121,
-        46.857762026945935,
-        -114.0464842183559,
-        46.85789010246256
-    ],
     "type": "FeatureCollection",
     "features": [
         {
-            "bbox": [
-                -114.04648742296072,
-                46.85788931085731,
-                -114.04648742296072,
-                46.85788931085731
-            ],
             "type": "Feature",
             "geometry": {
                 "type": "Point",
@@ -83,12 +71,6 @@ This endpoint sends realtime tree detections as a geojson 'FeatureCollection'. A
             "id": "1963"
         },
         {
-            "bbox": [
-                -114.04657608680303,
-                46.85784802951782,
-                -114.04657608680303,
-                46.85784802951782
-            ],
             "type": "Feature",
             "geometry": {
                 "type": "Point",
@@ -112,12 +94,6 @@ This endpoint sends realtime tree detections as a geojson 'FeatureCollection'. A
             "id": "1964"
         },
         {
-            "bbox": [
-                -114.04654301100568,
-                46.8578365381372,
-                -114.04654301100568,
-                46.8578365381372
-            ],
             "type": "Feature",
             "geometry": {
                 "type": "Point",
@@ -139,25 +115,9 @@ This endpoint sends realtime tree detections as a geojson 'FeatureCollection'. A
                 "time": "2024-05-10T17:36:58.226831"
             }
         }
-        ]
-    }
-
-{
-    "bbox": [
-        -114.04657608680303,
-        46.85784802951782,
-        -114.04657608680303,
-        46.85784802951782
-    ],
-    "type": "Feature",
-    "geometry": {
-        "type": "Point",
-        "coordinates": [
-            -114.04657608680303,
-            46.85784802951782
-        ]
-    }
+    ]
 }
+
 ```
 
 ### /position
@@ -166,12 +126,6 @@ All property values are in Meters
 
 ```json
 {
-    "bbox": [
-        -114.04685928258284,
-        46.8581811749801,
-        -114.04685928258284,
-        46.8581811749801
-    ],
     "type": "Feature",
     "geometry": {
         "type": "Point",
