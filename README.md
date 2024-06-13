@@ -22,6 +22,10 @@ launch the application with cli argument --data
 python3 launch.py --data PATH_TO_DATA
 
 
+To view response examples go to
+
+http://0.0.0.0:8100/docs
+
 
 ## Endpoints
 
@@ -38,6 +42,8 @@ Streams realtime tree detections
 
 ### /tree
 This endpoint sends realtime tree detections as a geojson 'FeatureCollection'. All property units are in meters.
+
+'''
 {
     "bbox": [
         -114.04663625949121,
@@ -135,10 +141,13 @@ This endpoint sends realtime tree detections as a geojson 'FeatureCollection'. A
         }
         ]
     }
+'''
 
 ### /position
 This enpoint sends realtime positions as a geojson 'Feature'.
 All property values are in Meters
+
+'''
 {
     "bbox": [
         -114.04685928258284,
@@ -166,3 +175,4 @@ All property values are in Meters
     },
     "id": "0"
 }
+'''
