@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
-import uvicorn
 import json
 from pathlib import Path
 import pandas as pd
@@ -172,11 +171,3 @@ async def pos_sse(request:Request)-> PositionResponse:
 
     return EventSourceResponse(event_generator())
 
-
-if __name__ == '__main__':
-
-  
-
-    uvicorn.run("ar_sim:ar_sim",host="0.0.0.0", port=8800,log_level="info",reload=True)
-
-            

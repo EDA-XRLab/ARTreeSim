@@ -11,3 +11,4 @@ redis
 starlette
 sse-starlette
 geopandas
+json
