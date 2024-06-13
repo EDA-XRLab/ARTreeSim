@@ -1,0 +1,536 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "FastAPI",
+        "version": "0.1.0"
+    },
+    "paths": {
+        "/video": {
+            "get": {
+                "summary": "Video Feed",
+                "operationId": "video_feed_video_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/tree": {
+            "get": {
+                "summary": "Send Tree",
+                "operationId": "send_tree_tree_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FeatureCollection_Feature_Point__TreeProperties__"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/position": {
+            "get": {
+                "summary": "Pos Sse",
+                "operationId": "pos_sse_position_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Feature_Point_PositionProperties_"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "FeatureCollection_Feature_Point__TreeProperties__": {
+                "properties": {
+                    "bbox": {
+                        "anyOf": [
+                            {
+                                "prefixItems": [
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    }
+                                ],
+                                "type": "array",
+                                "maxItems": 4,
+                                "minItems": 4
+                            },
+                            {
+                                "prefixItems": [
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    }
+                                ],
+                                "type": "array",
+                                "maxItems": 6,
+                                "minItems": 6
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Bbox"
+                    },
+                    "type": {
+                        "const": "FeatureCollection",
+                        "title": "Type"
+                    },
+                    "features": {
+                        "items": {
+                            "$ref": "#/components/schemas/Feature_Point_TreeProperties_"
+                        },
+                        "type": "array",
+                        "title": "Features"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "type",
+                    "features"
+                ],
+                "title": "FeatureCollection[Feature[Point, TreeProperties]]"
+            },
+            "Feature_Point_PositionProperties_": {
+                "properties": {
+                    "bbox": {
+                        "anyOf": [
+                            {
+                                "prefixItems": [
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    }
+                                ],
+                                "type": "array",
+                                "maxItems": 4,
+                                "minItems": 4
+                            },
+                            {
+                                "prefixItems": [
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    }
+                                ],
+                                "type": "array",
+                                "maxItems": 6,
+                                "minItems": 6
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Bbox"
+                    },
+                    "type": {
+                        "const": "Feature",
+                        "title": "Type"
+                    },
+                    "geometry": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Point"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "properties": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/PositionProperties"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Id"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "type",
+                    "geometry",
+                    "properties"
+                ],
+                "title": "Feature[Point, PositionProperties]"
+            },
+            "Feature_Point_TreeProperties_": {
+                "properties": {
+                    "bbox": {
+                        "anyOf": [
+                            {
+                                "prefixItems": [
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    }
+                                ],
+                                "type": "array",
+                                "maxItems": 4,
+                                "minItems": 4
+                            },
+                            {
+                                "prefixItems": [
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    }
+                                ],
+                                "type": "array",
+                                "maxItems": 6,
+                                "minItems": 6
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Bbox"
+                    },
+                    "type": {
+                        "const": "Feature",
+                        "title": "Type"
+                    },
+                    "geometry": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Point"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "properties": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/TreeProperties"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Id"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "type",
+                    "geometry",
+                    "properties"
+                ],
+                "title": "Feature[Point, TreeProperties]"
+            },
+            "Point": {
+                "properties": {
+                    "bbox": {
+                        "anyOf": [
+                            {
+                                "prefixItems": [
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    }
+                                ],
+                                "type": "array",
+                                "maxItems": 4,
+                                "minItems": 4
+                            },
+                            {
+                                "prefixItems": [
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "number"
+                                    }
+                                ],
+                                "type": "array",
+                                "maxItems": 6,
+                                "minItems": 6
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Bbox"
+                    },
+                    "type": {
+                        "const": "Point",
+                        "title": "Type"
+                    },
+                    "coordinates": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Position2D"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Position3D"
+                            }
+                        ],
+                        "title": "Coordinates"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "type",
+                    "coordinates"
+                ],
+                "title": "Point",
+                "description": "Point Model"
+            },
+            "Position2D": {
+                "prefixItems": [
+                    {
+                        "type": "number",
+                        "title": "Longitude"
+                    },
+                    {
+                        "type": "number",
+                        "title": "Latitude"
+                    }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+            },
+            "Position3D": {
+                "prefixItems": [
+                    {
+                        "type": "number",
+                        "title": "Longitude"
+                    },
+                    {
+                        "type": "number",
+                        "title": "Latitude"
+                    },
+                    {
+                        "type": "number",
+                        "title": "Altitude"
+                    }
+                ],
+                "type": "array",
+                "maxItems": 3,
+                "minItems": 3
+            },
+            "PositionProperties": {
+                "properties": {
+                    "x": {
+                        "type": "number",
+                        "title": "X"
+                    },
+                    "y": {
+                        "type": "number",
+                        "title": "Y"
+                    },
+                    "z": {
+                        "type": "number",
+                        "title": "Z"
+                    },
+                    "azimuth": {
+                        "type": "number",
+                        "title": "Azimuth"
+                    },
+                    "pitch": {
+                        "type": "number",
+                        "title": "Pitch"
+                    },
+                    "roll": {
+                        "type": "number",
+                        "title": "Roll"
+                    },
+                    "time": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Time"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "x",
+                    "y",
+                    "z",
+                    "azimuth",
+                    "pitch",
+                    "roll",
+                    "time"
+                ],
+                "title": "PositionProperties"
+            },
+            "TreeProperties": {
+                "properties": {
+                    "x": {
+                        "type": "number",
+                        "title": "X"
+                    },
+                    "y": {
+                        "type": "number",
+                        "title": "Y"
+                    },
+                    "z": {
+                        "type": "number",
+                        "title": "Z"
+                    },
+                    "pixel_center": {
+                        "items": {},
+                        "type": "array",
+                        "title": "Pixel Center"
+                    },
+                    "diameter": {
+                        "type": "number",
+                        "title": "Diameter"
+                    },
+                    "time": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Time"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "x",
+                    "y",
+                    "z",
+                    "pixel_center",
+                    "diameter",
+                    "time"
+                ],
+                "title": "TreeProperties"
+            }
+        }
+    }
+}

@@ -4,3 +4,10 @@ numpy
 opencv-python
 requests
 geojson-pydantic
+pandas
+pydantic
+shapely
+redis
+starlette
+sse-starlette
+geopandas

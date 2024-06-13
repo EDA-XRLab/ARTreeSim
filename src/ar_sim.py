@@ -1,9 +1,6 @@
-from fastapi import FastAPI, Request,WebSocket,BackgroundTasks
-from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
 import uvicorn
-import os
-import sys
 import json
 from pathlib import Path
 import pandas as pd
@@ -11,14 +8,15 @@ import geopandas as gpd
 from pydantic import BaseModel  
 from datetime import datetime
 import cv2
-from geojson_pydantic import Feature, FeatureCollection, Point, Polygon
+from geojson_pydantic import Feature, FeatureCollection, Point
 from itertools import cycle
 import time
 import redis
-import argparse
 from shapely import wkt
-
+from sse_starlette.sse import EventSourceResponse
 from threading import Thread
+from fastapi.middleware.cors import CORSMiddleware
+import os
 
 class TreeProperties(BaseModel):
     x: float
@@ -69,7 +67,7 @@ class DataHandler:
 
         self.time_cycle = cycle(self.rb_pos_catalog['time'].to_list())
 
-        self.redis_server = redis.Redis(host='localhost',port=6379,db=0)
+        self.redis_server = redis.Redis(host='localhost', port=6379)
         self.tree_sub = self.redis_server.pubsub()
         self.pos_sub = self.redis_server.pubsub()
         self.tree_sub.subscribe('tree')
@@ -112,42 +110,67 @@ class DataHandler:
                 time.sleep(delta)
 
 ar_sim = FastAPI()
+ar_sim.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # You can replace "*" with specific origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @ar_sim.on_event("startup")
 async def startup_event():
     
-    ar_sim.datahandler = DataHandler("/home/dunbar/Desktop/Recordings/2024_5_10/ar_sim_test/")
+    data_dir = os.getenv("ARSIM_DATADIR")
+    ar_sim.datahandler = DataHandler(data_dir)
     main_thread = Thread(target=ar_sim.datahandler.run)
     main_thread.start()
 
    
 
 @ar_sim.get("/video")
-async def video_feed():
+async def video_feed(request:Request):
     def stream():
         while True:
             for image in ar_sim.datahandler.get_img():
                 yield image
     return StreamingResponse(stream(),media_type='multipart/x-mixed-replace; boundary=frame')
 
-@ar_sim.get("/tree",)
-async def tree_ws(request:Request) -> TreeResponseCollection:
- 
-    while True:
-        for message in ar_sim.datahandler.tree_sub.listen():
-            if message['type'] == 'message':
-                response = TreeResponseCollection.model_validate_json(message['data'])
-                return response
-            
-@ar_sim.websocket("/position")
-async def pos_ws(websocket: WebSocket) -> PositionResponse:
-    await websocket.accept()
-    while True:
-        for message in ar_sim.datahandler.pos_sub.listen():
-            if message['type'] == 'message':
-                response = PositionResponse.parse_raw(message['data'])
-                await websocket.send_text(response)
+@ar_sim.get("/tree")
+async def send_tree(request:Request) -> TreeResponseCollection:
 
+    async def tree_event():
+        while True:
+            if await request.is_disconnected():
+                break
+
+            message = ar_sim.datahandler.tree_sub.get_message()
+            if message:
+                try:
+                    response = TreeResponseCollection.model_validate_json(message['data'])
+                    yield response.model_dump_json()
+                except:
+                    pass
+    return EventSourceResponse(tree_event())
+
+
+@ar_sim.get("/position")
+async def pos_sse(request:Request)-> PositionResponse:
+
+    async def event_generator() :
+        while True:
+            if await request.is_disconnected():
+                break
+
+            message = ar_sim.datahandler.pos_sub.get_message()
+
+            if message:
+                try:
+                    yield PositionResponse.model_validate_json(message['data']).model_dump_json()
+                except:
+                    pass
+
+    return EventSourceResponse(event_generator())
 
 
 if __name__ == '__main__':
