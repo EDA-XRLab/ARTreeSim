@@ -141,10 +141,6 @@ This endpoint sends realtime tree detections as a geojson 'FeatureCollection'. A
         }
         ]
     }
-To keep a JSON format in a Markdown (.md) file, you can use code blocks. Code blocks in Markdown are created by indenting lines by at least four spaces or by placing triple backticks (```) before and after the code block.
-
-Here's how you can include your JSON in a code block using backticks:
-
 
 ```json
 {
@@ -164,8 +160,6 @@ Here's how you can include your JSON in a code block using backticks:
     }
 }
 ```
-
-In this example, the `json` after the opening backticks is optional and is used to specify the language for syntax highlighting. If your Markdown viewer supports syntax highlighting, it will highlight the JSON syntax appropriately.
 
 ### /position
 This enpoint sends realtime positions as a geojson 'Feature'.
