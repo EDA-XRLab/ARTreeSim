@@ -142,7 +142,6 @@ This endpoint sends realtime tree detections as a geojson 'FeatureCollection'. A
         ]
     }
 
-```json
 {
     "bbox": [
         -114.04657608680303,
