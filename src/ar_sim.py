@@ -16,6 +16,8 @@ from sse_starlette.sse import EventSourceResponse
 from threading import Thread
 from fastapi.middleware.cors import CORSMiddleware
 import os
+from apscheduler.schedulers.background import BackgroundScheduler
+from .stemmap import StemMap,SMPosition,NoTreesFound
 
 class TreeProperties(BaseModel):
     x: float
@@ -35,6 +37,8 @@ class PositionProperties(BaseModel):
     pitch: float
     roll: float
     time: datetime
+    lat:float
+    lon:float
 
 PositionResponse = Feature[Point,PositionProperties]
 
@@ -53,6 +57,9 @@ class DataHandler:
         rgb_pos_catalog['geometry'] = rgb_pos_catalog['geometry'].apply(wkt.loads)
         rgb_pos_catalog['time'] = pd.to_datetime(rgb_pos_catalog['time'],format='mixed')
         self.rb_pos_catalog = gpd.GeoDataFrame(rgb_pos_catalog,geometry="geometry")
+        self.rb_pos_catalog["lat"] = self.rb_pos_catalog['geometry'].apply(lambda x: x.y)
+        self.rb_pos_catalog["lon"] = self.rb_pos_catalog['geometry'].apply(lambda x: x.x)
+
         with open(raw_tree_gjson_path,'r') as f:
             self.raw_tree_gjson = json.load(f)
 
@@ -62,6 +69,8 @@ class DataHandler:
         # get time deltas between each entry in the catalog
         time_diff = self.rb_pos_catalog['time'].diff().dt.total_seconds().to_list()
         time_diff[0] = 0
+
+        self.iter_count = cycle(range(len(time_diff)))
         self.time_delta = cycle(time_diff)
 
         self.time_cycle = cycle(self.rb_pos_catalog['time'].to_list())
@@ -69,15 +78,40 @@ class DataHandler:
         self.redis_server = redis.Redis(host='localhost', port=6379)
         self.tree_sub = self.redis_server.pubsub()
         self.pos_sub = self.redis_server.pubsub()
+        self.global_tree_sub = self.redis_server.pubsub()
+        self.global_tree_sub.subscribe('global_tree')
         self.tree_sub.subscribe('tree')
         self.pos_sub.subscribe('position')
+
+        self.stem_map = StemMap(cam_info={"depth_distance":20,"fov_h":45})
+
+
+    
+    def event_process_trees(self):
+        positions_processed = []
+        while True:
+            pos = self.redis_server.lpop('position')
+            if pos is not None:
+                pos = json.loads(pos.decode('utf-8'))
+                positions_processed.append(SMPosition(**pos))
+            else:
+                break
+        
+        try:
+            new_trees = self.stem_map.event_process_staged_trees(positions=positions_processed)
+            new_trees['geometry'] = new_trees.apply(lambda x: Point(x.lon,x.lat,x.elev))
+            new_trees_gpd = gpd.GeoDataFrame(new_trees,geometry='geometry')
+            out = TreeResponseCollection.model_validate_json(new_trees_gpd.to_json())
+            self.redis_server.publish('global_tree',out.model_dump_json())
+        except NoTreesFound:
+            pass
 
     def iter(self,time:datetime):
         current_iter = self.rb_pos_catalog[self.rb_pos_catalog['time']==time].__geo_interface__["features"][0] 
         
         tolerance = pd.Timedelta(seconds=.5)
         tree_mask = (self.raw_tree_df['time'] >= time - tolerance) & (self.raw_tree_df['time'] <= time + tolerance)
-        raw_tree_set = self.raw_tree_df.loc[tree_mask].__geo_interface__
+        raw_tree_set = self.raw_tree_df.loc[tree_mask]
         current_rgb = Path(current_iter["properties"]['rgb_path'])
         rgb_path = self.img_dir/current_rgb.name
 
@@ -85,11 +119,13 @@ class DataHandler:
         
         self.current_iter = PositionResponse(**current_iter)
         
-   
+
+        self.redis_server.lpush('position',self.current_iter.model_dump_json())
         self.redis_server.publish('position',self.current_iter.model_dump_json())
 
-        if raw_tree_set:
-            self.current_tree_set = TreeResponseCollection(**raw_tree_set)
+        if raw_tree_set.shape[0]>0:
+            [self.stem_map.stage_tree(tree) for tree in raw_tree_set.to_dict(orient='records')]
+            self.current_tree_set = TreeResponseCollection(**raw_tree_set.__geo_interface__)
             self.redis_server.publish('tree',self.current_tree_set.model_dump_json())
 
     def get_img(self):
@@ -103,8 +139,11 @@ class DataHandler:
 
     def run(self):
         # Iterate over the time entries in self.rb_pos_catalog, when done restart the loop
+       
         while True:
-            for delta,time_stamp in zip(self.time_delta,self.time_cycle):
+            for delta,time_stamp,iter_count in zip(self.time_delta,self.time_cycle,self.iter_count):
+                if iter_count == 0:
+                    self.stem_map = StemMap(cam_info={"depth_distance":20,"fov_h":45})
                 self.iter(time_stamp)
                 time.sleep(delta)
 
@@ -122,9 +161,15 @@ async def startup_event():
     
     data_dir = os.getenv("ARSIM_DATADIR")
     ar_sim.datahandler = DataHandler(data_dir)
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(
+            func=ar_sim.datahandler.event_process_trees,
+            trigger="interval",
+            minutes=2,
+        )
     main_thread = Thread(target=ar_sim.datahandler.run)
     main_thread.start()
-
+    scheduler.start()
    
 
 @ar_sim.get("/video")
@@ -152,6 +197,21 @@ async def send_tree(request:Request) -> TreeResponseCollection:
                     pass
     return EventSourceResponse(tree_event())
 
+@ar_sim.get("/tree_global")
+async def send_tree_filtered(request:Request) -> TreeResponseCollection:
+
+    async def global_tree_event():
+        while True:
+            if await request.is_disconnected():
+                break
+            message = ar_sim.datahandler.global_tree_sub.get_message()
+            if message:
+                try:
+                    response = TreeResponseCollection.model_validate_json(message['data'])
+                    yield response.model_dump_json()
+                except:
+                    pass
+    return EventSourceResponse(global_tree_event())
 
 @ar_sim.get("/position")
 async def pos_sse(request:Request)-> PositionResponse:
