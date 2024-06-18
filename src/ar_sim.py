@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import pandas as pd
 import geopandas as gpd
-from pydantic import BaseModel  
+from pydantic import BaseModel,Field
 from datetime import datetime
 import cv2
 from geojson_pydantic import Feature, FeatureCollection, Point
@@ -17,15 +17,16 @@ from threading import Thread
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from apscheduler.schedulers.background import BackgroundScheduler
+from typing import Optional
 from .stemmap import StemMap,SMPosition,NoTreesFound
 
 class TreeProperties(BaseModel):
     x: float
     y: float
     z: float
-    pixel_center: list
+    pixel_center: Optional[list]
     diameter: float
-    time: datetime
+    time:datetime 
 
 TreeResponse = Feature[Point,TreeProperties]
 
@@ -36,7 +37,7 @@ class PositionProperties(BaseModel):
     azimuth: float
     pitch: float
     roll: float
-    time: datetime
+    time:datetime 
     lat:float
     lon:float
 
@@ -93,16 +94,21 @@ class DataHandler:
             pos = self.redis_server.lpop('position')
             if pos is not None:
                 pos = json.loads(pos.decode('utf-8'))
-                positions_processed.append(SMPosition(**pos))
+
+                input = pos['properties']
+                input['elevation'] = pos['geometry']['coordinates'][-1]
+                input['timestamp'] = input['time']
+                positions_processed.append(SMPosition(**input))
             else:
                 break
         
         try:
             new_trees = self.stem_map.event_process_staged_trees(positions=positions_processed)
-            new_trees['geometry'] = new_trees.apply(lambda x: Point(x.lon,x.lat,x.elev))
+            
             new_trees_gpd = gpd.GeoDataFrame(new_trees,geometry='geometry')
-            out = TreeResponseCollection.model_validate_json(new_trees_gpd.to_json())
-            self.redis_server.publish('global_tree',out.model_dump_json())
+            new_trees_gpd.timestamp = new_trees_gpd.timestamp.apply(lambda x: x.isoformat())
+    
+            self.redis_server.publish('global_tree',new_trees_gpd.to_json())
         except NoTreesFound:
             pass
 
@@ -124,7 +130,12 @@ class DataHandler:
         self.redis_server.publish('position',self.current_iter.model_dump_json())
 
         if raw_tree_set.shape[0]>0:
-            [self.stem_map.stage_tree(tree) for tree in raw_tree_set.to_dict(orient='records')]
+            to_stemmap = raw_tree_set.copy()
+            to_stemmap["lat"] = to_stemmap.apply(lambda x: x.geometry.y,axis=1)
+            to_stemmap["lon"] = to_stemmap.apply(lambda x: x.geometry.x,axis=1)
+            to_stemmap['elev'] = to_stemmap.apply(lambda x: x.geometry.z,axis=1)
+            to_stemmap["timestamp"] = to_stemmap["time"]
+            self.stem_map.stage_tree(to_stemmap.to_dict(orient='records'))
             self.current_tree_set = TreeResponseCollection(**raw_tree_set.__geo_interface__)
             self.redis_server.publish('tree',self.current_tree_set.model_dump_json())
 
@@ -207,8 +218,8 @@ async def send_tree_filtered(request:Request) -> TreeResponseCollection:
             message = ar_sim.datahandler.global_tree_sub.get_message()
             if message:
                 try:
-                    response = TreeResponseCollection.model_validate_json(message['data'])
-                    yield response.model_dump_json()
+                   
+                    yield message['data']
                 except:
                     pass
     return EventSourceResponse(global_tree_event())

@@ -443,6 +443,7 @@ class StemMap:
         """
         if isinstance(prediction, list):
             self.staged_predictions.extend(prediction)
+            return
         self.staged_predictions.append(prediction)
 
     def get_raw(self) -> pd.DataFrame:
