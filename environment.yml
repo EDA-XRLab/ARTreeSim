@@ -15,8 +15,10 @@ dependencies:
     - uvicorn
     - opencv
     - pandas
-
+    - torch
+    - torchvision
     - pip:
         - jsonpickle
         - sse-starlette
+        - 'detectron2 @ git+https://github.com/facebookresearch/detectron2.git'
     
