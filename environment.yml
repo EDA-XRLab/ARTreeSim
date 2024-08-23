@@ -1,0 +1,22 @@
+name: timbertrack
+channels:
+    - defaults
+    - conda-forge
+    - pytorch
+    - anaconda
+    - nvidia
+ 
+dependencies:
+    - python=3.8
+    - redis
+    - numpy
+    - pydantic
+    - fastapi
+    - uvicorn
+    - opencv
+    - pandas
+
+    - pip:
+        - jsonpickle
+        - sse-starlette
+    
