@@ -1,11 +1,8 @@
 from pydantic import BaseModel,Field,model_validator,model_serializer,root_validator
 from datetime import datetime
-import cv2
-from geojson_pydantic import Feature,Point
 from typing import Optional,Union,Dict,Any
 import numpy as np
-import base64
-import pickle
+
 import jsonpickle
 
 class TreeProperties(BaseModel):
@@ -16,7 +13,6 @@ class TreeProperties(BaseModel):
     diameter: float
     time:datetime 
 
-TreeResponse = Feature[Point,TreeProperties]
 
 class CameraModel(BaseModel):
     c_col: float = Field(...,title="Principal point column")

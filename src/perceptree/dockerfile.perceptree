@@ -6,16 +6,17 @@ RUN conda install -c conda-forge conda-pack -y
 
 COPY perceptree_env.yaml .
 
-RUN conda env create -f perceptree_env.yaml
-# Use conda-pack to create a standalone enviornment
-# in /venv:
-RUN conda-pack -n timbertrack -o /tmp/env.tar && \
+
+RUN conda env create -f perceptree_env.yaml && \
+  conda-pack -n timbertrack -o /tmp/env.tar && \
   mkdir /venv && cd /venv && tar xf /tmp/env.tar && \
-  rm /tmp/env.tar
+  rm /tmp/env.tar && \
+  /venv/bin/conda-unpack
+
+
 
 # We've put venv in same path it'll be in final image,
 # so now fix up paths:
-RUN /venv/bin/conda-unpack
 
 COPY . /app 
 
@@ -36,8 +37,8 @@ RUN apt-get update && apt-get install -y \
 ENV CUDA_HOME='/usr/local/cuda-11.1'
 # create a non-root user
 ARG USER_ID=1000
-RUN useradd -m --no-log-init --system  --uid ${USER_ID} appuser -g sudo
-RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+RUN useradd -m --no-log-init --system  --uid ${USER_ID} appuser -g sudo && \
+    echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 USER appuser
 # WORKDIR /home/appuser
 
@@ -57,11 +58,13 @@ ENV TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST}"
 # # install dependencies
 # # See https://pytorch.org/ for other options if you use a different version of CUDA
 
-RUN /venv/bin/pip install --user torch==1.10 torchvision==0.11.1 -f https://download.pytorch.org/whl/cu111/torch_stable.html
+RUN /venv/bin/pip install --user torch==1.10 torchvision==0.11.1 -f https://download.pytorch.org/whl/cu111/torch_stable.html &&\
+    /venv/bin/pip install --user 'git+https://github.com/facebookresearch/fvcore' &&\
+    /venv/bin/pip install --user 'detectron2 @ git+https://github.com/facebookresearch/detectron2.git'
 
-RUN /venv/bin/pip install --user 'git+https://github.com/facebookresearch/fvcore'
-# install detectron2
-RUN /venv/bin/pip install --user 'detectron2 @ git+https://github.com/facebookresearch/detectron2.git'
+# RUN /venv/bin/pip install --user 'git+https://github.com/facebookresearch/fvcore'
+# # install detectron2
+# RUN /venv/bin/pip install --user 'detectron2 @ git+https://github.com/facebookresearch/detectron2.git'
 # set FORCE_CUDA because during `docker build` cuda is not accessible
 
 # RUN pip install --user -e detectron2_repo
@@ -69,5 +72,6 @@ RUN /venv/bin/pip install --user 'detectron2 @ git+https://github.com/facebookre
 # Set a fixed model cache directory.
 ENV FVCORE_CACHE="/tmp"
 
+COPY . /app
 WORKDIR /app
-CMD ["/venv/bin/python3", "/app/detection_app.py"]
+CMD ["/venv/bin/python3", "./app/detection_app.py"]

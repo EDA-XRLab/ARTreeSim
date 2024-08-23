@@ -45,3 +45,16 @@ See /src/io.py for details
 /images/
     add/ # add images via rest api (maybe ideal for local network interface)
 
+
+
+# Trouble shooting:
+
+### "Error starting userland proxy: listen tcp4 127.0.0.1:6379: bind: address already in use"
+- stop redis daemon:
+    `sudo /etc/init.d/redis-server stop`
+
+- run docker compose:
+    `docker compose up`
+
+- restart redis daemon
+    `sudo /etc/init.d/redis-server start`

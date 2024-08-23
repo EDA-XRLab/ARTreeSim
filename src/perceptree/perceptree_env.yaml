@@ -21,3 +21,5 @@ dependencies:
         - torchvision
         - gpsdclient
         - sse-starlette
+        - jsonpickle
+        
