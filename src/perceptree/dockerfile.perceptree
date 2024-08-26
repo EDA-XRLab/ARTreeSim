@@ -6,8 +6,8 @@ RUN conda install -c conda-forge conda-pack -y
 
 COPY perceptree_env.yaml .
 
-RUN conda env create -f perceptree_env.yaml
-RUN conda-pack -n timbertrack -o /tmp/env.tar && \
+RUN conda env create -f perceptree_env.yaml && \
+  conda-pack -n timbertrack -o /tmp/env.tar && \
   mkdir /venv && cd /venv && tar xf /tmp/env.tar && \
   rm /tmp/env.tar && \
   /venv/bin/conda-unpack
@@ -70,4 +70,4 @@ ENV FVCORE_CACHE="/tmp"
 COPY . /app
 WORKDIR /app
 
-CMD ["./docker_entrypoint.sh"]
+CMD ["/app/docker_entrypoint.sh"]
