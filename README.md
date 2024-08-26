@@ -17,9 +17,13 @@ create environment `conda env create -f environment.yml`
 activate `conda activate timbertrack`
 
 ## Step 3
-start backend microservice
+start backend microservice on jetson platform
 
 `docker compose up`
+
+or on x86-64
+
+`docker compose -f docker-compose.yaml -f docker-compose.x86_override.yaml up`
 
 to view swagger schema, go to http://localhost:8000/docs
 

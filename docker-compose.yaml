@@ -4,11 +4,24 @@ services:
       context: "src/perceptree"
       dockerfile: "dockerfile.perceptree"
     ports:
-      - "8000:8000"
-      - "6379:6379"
+      - 8000:8000
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=video,compute,utility
+      - REDIS_HOST=redis
     privileged: true
     runtime: nvidia  # For GPU support
+  redis:
+    image: redis:5
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - 6379:6379
+    environment:
+      ALLOW_EMPTY_PASSWORD: 'yes'
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 1s
+      timeout: 3s
+      retries: 5
 

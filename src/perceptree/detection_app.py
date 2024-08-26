@@ -59,7 +59,8 @@ detection_app.add_middleware(
 def startup_event():
  
     detection_app.perceptree = Perceptree()
-    detection_app.redis = redis.Redis(host='localhost', port=6379, db=0)
+    redis_host = os.environ.get("REDIS_HOST", "localhost")
+    detection_app.redis = redis.Redis(host=redis_host, port=6379, db=0)
     detection_app.redis.flushall()
     detection_app.is_running = False
 
