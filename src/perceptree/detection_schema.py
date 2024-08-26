@@ -27,9 +27,8 @@ class Image(BaseModel):
     model: Union[CameraModel,Dict[str,Any]]
     timestamp: datetime
 
-    @model_serializer
+    @model_serializer(when_used='json')
     def serialize(self) -> Dict[str,Any]:
-       
         return {k:jsonpickle.encode(v) for k,v in self.__dict__.items()}
         
 
@@ -38,8 +37,7 @@ class Image(BaseModel):
 
 
     @classmethod
-    def from_serial(cls,data:dict):
-        data = {k:jsonpickle.decode(v) for k,v in data.items()}
-        data["model"] = CameraModel(**dict(data["model"]))
+    def from_serial_json(cls, data:dict):
+        data = {k:jsonpickle.decode(v, classes={'src.perceptree.detection_schema.CameraModel':CameraModel}) for k,v in data.items()}
         return cls(**data)
     

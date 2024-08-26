@@ -1,2 +1,5 @@
 *.pyc
 src/perceptree/weights/*
+ar_sim_test
+
+__pycache__

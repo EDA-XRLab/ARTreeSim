@@ -6,19 +6,14 @@ RUN conda install -c conda-forge conda-pack -y
 
 COPY perceptree_env.yaml .
 
-
-RUN conda env create -f perceptree_env.yaml && \
-  conda-pack -n timbertrack -o /tmp/env.tar && \
+RUN conda env create -f perceptree_env.yaml
+RUN conda-pack -n timbertrack -o /tmp/env.tar && \
   mkdir /venv && cd /venv && tar xf /tmp/env.tar && \
   rm /tmp/env.tar && \
   /venv/bin/conda-unpack
 
-
-
 # We've put venv in same path it'll be in final image,
 # so now fix up paths:
-
-COPY . /app 
 
 FROM nvidia/cuda:11.1.1-cudnn8-devel-ubuntu18.04
 # use an older system (18.04) to avoid opencv incompatibility (issue#3524)
@@ -31,8 +26,8 @@ RUN source /venv/bin/activate
 ENV PATH="/venv/bin:${PATH}"
 ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update && apt-get install -y \
-	python3-opencv ca-certificates python3-dev git wget sudo ninja-build \
-    ffmpeg redis 
+	ca-certificates git wget sudo ninja-build \
+    ffmpeg redis
 
 ENV CUDA_HOME='/usr/local/cuda-11.1'
 # create a non-root user
@@ -74,4 +69,5 @@ ENV FVCORE_CACHE="/tmp"
 
 COPY . /app
 WORKDIR /app
-CMD ["/venv/bin/python3", "./app/detection_app.py"]
+
+CMD ["./docker_entrypoint.sh"]

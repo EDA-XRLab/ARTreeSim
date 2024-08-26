@@ -11,14 +11,12 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 
 from typing import Optional, List, Dict, Any,Union
-import redis
-from threading import Thread
 from enum import Enum
 import uvicorn
 import sys
 sys.path.append(".")
 from perceptree import Perceptree
-from detection_schema import Image,TreeProperties 
+from detection_schema import Image,TreeProperties
 
 class OutputFormat(Enum):
     JSON = "json"
@@ -33,16 +31,14 @@ def remove_file(file_path):
 def run_detection_thread(app_object):
     print("Running detection")
     while app_object.is_running:
-        
         try:
             detection_image = app_object.redis.lpop("images")
             if detection_image:
                 detection_image = json.loads(detection_image)
-                detection_image_proc = Image.from_serial(detection_image)
-                detection_image_proc.model = dict(detection_image_proc.model)
-                raw_detections = app_object.perceptree.predict(**dict(detection_image_proc))
+                detection_image_proc = Image.from_serial_json(detection_image)
+                raw_detections = app_object.perceptree.predict(**detection_image_proc.model_dump())
                 detections = [TreeProperties(**x) for x in raw_detections]
-                count = len(detections) + app_object.system_status.get("detection_count",0)
+                count = len(detections) + app_object.system_status.get("detection_count", 0)
                 app_object.system_status["detection_count"] = count
                 [app_object.redis.lpush("detections",x.model_dump_json()) for x in detections]
         except KeyboardInterrupt:
@@ -138,4 +134,4 @@ async def get_detections(format: Optional[OutputFormat] = OutputFormat.JSON,
 
 
 if __name__ == "__main__":
-    uvicorn.run(detection_app,host="localhost",port=8000)
+    uvicorn.run(detection_app,host="0.0.0.0",port=8000)

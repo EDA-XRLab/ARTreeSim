@@ -13,7 +13,6 @@ dependencies:
     - pydantic
     - fastapi
     - uvicorn
-    - redis
     - opencv
     - pandas
     - pip:
@@ -22,4 +21,5 @@ dependencies:
         - gpsdclient
         - sse-starlette
         - jsonpickle
+        - redis
         
