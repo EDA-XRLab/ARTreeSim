@@ -12,7 +12,7 @@ services:
     privileged: true
     runtime: nvidia  # For GPU support
   redis:
-    image: redis:5
+    image: redis:7
     container_name: redis
     restart: unless-stopped
     ports:
